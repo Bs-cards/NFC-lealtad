@@ -1,0 +1,15 @@
+{
+  "name": "nfc-lealtad",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fidelización de clientes de restaurantes con chips NFC: registro, sellos, WhatsApp y panel.",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/",
+    "seed": "node src/cli.js seed-demo",
+    "cli": "node src/cli.js"
+  }
+}

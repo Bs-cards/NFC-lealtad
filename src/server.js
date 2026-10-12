@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { createApp } from './app.js';
+import { createApp, normalizeBase } from './app.js';
 import { openDb } from './db.js';
 
 export function loadConfig(env = process.env) {
@@ -17,13 +17,13 @@ export function loadConfig(env = process.env) {
   return {
     dataDir, secret,
     dbFile: env.DB_FILE || path.join(dataDir, 'lealtad.db'),
-    baseUrl: env.BASE_URL || 'http://localhost:3000',
+    baseUrl: normalizeBase(env.BASE_URL),
     port: Number(env.PORT || 3000),
     trustProxy: env.TRUST_PROXY === '1',
     waVerifyToken: env.WA_VERIFY_TOKEN || '',
     waAppSecret: env.WA_APP_SECRET || '',
     waApiVersion: env.WA_API_VERSION || 'v21.0',
-    devShowLinks: env.NODE_ENV !== 'production' && !env.BASE_URL?.startsWith('https://'),
+    devShowLinks: env.NODE_ENV !== 'production' && !normalizeBase(env.BASE_URL).startsWith('https://'),
     wallet: {
       issuerId: env.GOOGLE_WALLET_ISSUER_ID, saEmail: env.GOOGLE_WALLET_SA_EMAIL,
       saKey: (env.GOOGLE_WALLET_SA_KEY || '').replace(/\\n/g, '\n'),

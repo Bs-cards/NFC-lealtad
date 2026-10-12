@@ -20,10 +20,17 @@ const YEAR = 365 * 24 * 3600;
 const CARD_FLASH = new Set(['joined', 'welcome', 'reward']);
 const STAFF_NOTES = { redeemed: ['notice', 'Premio canjeado ✅'], stamped: ['notice', 'Visita sumada ✅'], already: ['error', 'Ese premio ya había sido canjeado.'], missing: ['error', 'No se encontró el premio.'], cooldown: ['error', 'No se pudo sumar.'] };
 
+/** Acepta BASE_URL con o sin esquema (Railway/Render a veces se copian sin https://). */
+export function normalizeBase(input) {
+  let b = String(input || 'http://localhost:3000').trim().replace(/\/+$/, '');
+  if (!/^https?:\/\//i.test(b)) b = (/^(localhost|127\.|0\.0\.0\.0)/.test(b) ? 'http://' : 'https://') + b;
+  return b;
+}
+
 export function createApp(opts = {}) {
   const secret = opts.secret;
   if (!secret || secret.length < 16) throw new Error('Falta SESSION_SECRET (mínimo 16 caracteres)');
-  const baseUrl = (opts.baseUrl || 'http://localhost:3000').replace(/\/$/, '');
+  const baseUrl = normalizeBase(opts.baseUrl);
   const secure = baseUrl.startsWith('https://');
   const clock = opts.now || Date.now;
   const log = opts.log || console;
@@ -225,7 +232,7 @@ export function createApp(opts = {}) {
     const cookiesOut = [];
     let r;
     try {
-      const url = new URL(req.url, baseUrl);
+      const url = new URL(req.url, 'http://localhost');
       const method = req.method === 'HEAD' ? 'GET' : req.method;
       const remote = req.socket.remoteAddress || '';
       const ip = opts.trustProxy ? (String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || remote) : remote;

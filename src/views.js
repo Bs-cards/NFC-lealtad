@@ -25,13 +25,13 @@ export function joinPage({ org, token, values = {}, errors = {}, notice = '' }) 
         ${notice ? html`<p class="notice">${notice}</p>` : ''}
         ${field('Tu nombre', html`<input name="name" value="${values.name || ''}" autocomplete="given-name" maxlength="60" required>`, errors.name)}
         ${field('Tu WhatsApp', html`<input name="phone" type="tel" inputmode="tel" value="${values.phone || ''}" autocomplete="tel" placeholder="300 123 4567" required>`, errors.phone)}
-        ${field('Tu cumpleaños (opcional)', html`<input name="birthday" type="date" value="${values.birthday || ''}" autocomplete="bday">`, errors.birthday)}
+        ${field('Tu fecha de nacimiento (opcional)', html`<input name="birthday" type="date" value="${values.birthday || ''}" autocomplete="bday">`, errors.birthday)}
         <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
         <label class="check"><input type="checkbox" name="consent" value="1" ${values.consent ? 'checked' : ''}>
           <span>Acepto recibir mensajes de ${org.name} por WhatsApp (tarjeta, reseñas, cumpleaños y promociones). Puedo responder BAJA cuando quiera.</span></label>
         ${errors.consent ? html`<em class="err">${errors.consent}</em>` : ''}
         <button class="btn" type="submit">Unirme y sumar mi primer sello</button>
-        <p class="tiny">Solo te pedimos nombre, WhatsApp y cumpleaños. No compartimos tus datos.</p>
+        <p class="tiny">Solo te pedimos nombre, WhatsApp y fecha de nacimiento. No compartimos tus datos.</p>
       </form></main>`,
   });
 }

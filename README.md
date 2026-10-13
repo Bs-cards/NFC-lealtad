@@ -49,6 +49,7 @@ Guía completa: [`docs/NFC-IPHONE-ANDROID.md`](docs/NFC-IPHONE-ANDROID.md). Resu
 | `DATA_DIR` / `DB_FILE` | Carpeta de datos / archivo SQLite | `./data` |
 | `SESSION_SECRET` | Firma de sesiones y cifrado del token de WhatsApp (≥16 car.) | se genera en `data/.secret` |
 | `TRUST_PROXY=1` | Usar `X-Forwarded-For` detrás de un proxy (Caddy/Nginx) | desactivado |
+| `OWNER_PASSWORD` | Activa la zona del propietario `/owner` con el botón de respaldo (mín. 12 caracteres) | desactivada |
 | `WA_VERIFY_TOKEN`, `WA_APP_SECRET` | Webhook de WhatsApp (bajas) | — |
 | `WA_API_VERSION` | Versión de la Graph API | `v21.0` |
 | `GOOGLE_WALLET_ISSUER_ID`, `GOOGLE_WALLET_SA_EMAIL`, `GOOGLE_WALLET_SA_KEY` | Google Wallet | — |
@@ -87,6 +88,16 @@ BASE_URL=https://club.tudominio.com TRUST_PROXY=1 node src/server.js
 ```
 
 Pon **HTTPS** delante (Caddy: `club.tudominio.com { reverse_proxy localhost:3000 }`). Haz **copias de seguridad** del directorio `data/` (con el servidor detenido o usando `sqlite3 lealtad.db ".backup copia.db"`). No ejecutes dos instancias a la vez.
+
+## Respaldo de la base de datos
+
+1. Define `OWNER_PASSWORD` (mínimo 12 caracteres) en las variables del servidor y vuelve a desplegar.
+2. Entra a `https://tu-dominio/owner`, inicia sesión y pulsa **Descargar copia de seguridad**. Se descarga `lealtad-AAAA-MM-DD.db`, una copia coherente (`VACUUM INTO`) aunque haya clientes tocando chips en ese momento.
+3. Hazlo con regularidad (por ejemplo, cada semana) y guarda el archivo **fuera** del servidor.
+
+Esta zona es solo para ti como propietario de la plataforma: la copia incluye los datos de **todos** los restaurantes, por eso los administradores de cada negocio no tienen este botón (ellos exportan sus clientes en CSV desde su panel). El archivo contiene datos personales: guárdalo en un lugar privado.
+
+**Restaurar:** con el servidor detenido, reemplaza `lealtad.db` en la carpeta de datos por la copia y borra los archivos `lealtad.db-wal` y `lealtad.db-shm` si existen. Guarda aparte tu `SESSION_SECRET`: sin él no se pueden descifrar los tokens de WhatsApp de la copia.
 
 ## Seguridad
 

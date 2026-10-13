@@ -282,3 +282,74 @@ test('base de datos nueva y mensajero independientes (migración idempotente)', 
   assert.equal(db.prepare('PRAGMA user_version').get().user_version, 1);
   assert.equal(typeof createMessenger, 'function');
 });
+
+test('BASE_URL sin https:// (como en Railway) no rompe las peticiones', async () => {
+  const a = createApp({ secret: 'otro-secreto-otro-secreto-123', baseUrl: 'mi-app.up.railway.app', log: { info() {}, warn() {}, error() {} } });
+  const addr = await a.start(0, '127.0.0.1');
+  try {
+    for (const path of ['/', '/healthz', '/admin/login', '/favicon.ico']) {
+      const r = await fetch(`http://127.0.0.1:${addr.port}${path}`, { redirect: 'manual' });
+      assert.ok(r.status < 500, `${path} → ${r.status}`);
+    }
+    assert.equal(a.svc.baseUrl, 'https://mi-app.up.railway.app');
+  } finally { await a.stop(); }
+});
+
+test('respaldo: solo el propietario descarga una copia consistente y restaurable', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const a = createApp({ secret: 'secreto-propietario-0123456789', baseUrl: 'http://x.local', ownerPassword: 'clave-propietario-123', log: { info() {}, warn() {}, error: console.error } });
+  const addr = await a.start(0, '127.0.0.1');
+  const base = `http://127.0.0.1:${addr.port}`;
+  try {
+    const r0 = a.svc.createOrg({ slug: 'bk', name: 'Backup Café', email: 'bk@x.co', password: 'una-clave-larga-123', staffPin: '1234' });
+    const chip = a.svc.createChip(r0.orgId, r0.locationId, 'c');
+    const org = a.svc.getOrg(r0.orgId);
+    for (let i = 0; i < 3; i++) a.svc.registerCustomer(org, a.svc.getChip(chip.token), { name: `Cliente ${i}`, phone: `30011100${i}0`, consent: '1' }, `dv${i}`, Date.now());
+
+    const d = new Device(); origin = base; // reutiliza el cliente de pruebas contra este servidor
+    assert.equal((await d.req('/owner')).status, 303, 'sin sesión redirige al login');
+    assert.equal((await d.req('/owner/backup', { method: 'POST', form: {} })).status, 303);
+    assert.equal((await d.req('/owner/login', { method: 'POST', form: { password: 'mala' } })).status, 401);
+
+    // un administrador de restaurante NO es propietario
+    await d.req('/admin/login', { method: 'POST', form: { email: 'bk@x.co', password: 'una-clave-larga-123' } });
+    assert.equal((await d.req('/owner')).status, 303);
+
+    assert.equal((await d.req('/owner/login', { method: 'POST', form: { password: 'clave-propietario-123' } })).status, 303);
+    const page = await d.req('/owner');
+    assert.match(page.text, /Descargar copia de seguridad/); assert.match(page.text, /Backup Café/);
+    const csrf = csrfOf(page.text);
+
+    assert.equal((await d.req('/owner/backup', { method: 'POST', form: {} })).status, 403, 'exige CSRF');
+
+    const res = await fetch(`${base}/owner/backup`, {
+      method: 'POST', headers: { cookie: [...d.jar].map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ _csrf: csrf }).toString(),
+    });
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-disposition'), /attachment; filename="lealtad-\d{4}-\d{2}-\d{2}\.db"/);
+    const buf = Buffer.from(await res.arrayBuffer());
+    assert.equal(buf.subarray(0, 15).toString(), 'SQLite format 3', 'es un archivo SQLite válido');
+
+    const f = `${os.tmpdir()}/restore-test-${Date.now()}.db`;
+    fs.writeFileSync(f, buf);
+    const copy = new DatabaseSync(f);
+    assert.equal(copy.prepare('SELECT COUNT(*) n FROM customers').get().n, 3);
+    assert.equal(copy.prepare('PRAGMA integrity_check').get().integrity_check, 'ok');
+    assert.equal(copy.prepare('PRAGMA user_version').get().user_version, 1);
+    copy.close(); fs.rmSync(f);
+  } finally { await a.stop(); }
+});
+
+test('respaldo: desactivado si no hay OWNER_PASSWORD (o es corta)', async () => {
+  for (const pw of [undefined, 'corta']) {
+    const a = createApp({ secret: 'secreto-propietario-0123456789', baseUrl: 'http://x.local', ownerPassword: pw, log: { info() {}, warn() {}, error() {} } });
+    const addr = await a.start(0, '127.0.0.1');
+    try {
+      assert.equal((await fetch(`http://127.0.0.1:${addr.port}/owner`, { redirect: 'manual' })).status, 404);
+      assert.equal((await fetch(`http://127.0.0.1:${addr.port}/owner/backup`, { method: 'POST', redirect: 'manual' })).status, 404);
+    } finally { await a.stop(); }
+  }
+});

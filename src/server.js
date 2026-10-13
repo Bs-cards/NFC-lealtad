@@ -20,6 +20,7 @@ export function loadConfig(env = process.env) {
     baseUrl: normalizeBase(env.BASE_URL),
     port: Number(env.PORT || 3000),
     trustProxy: env.TRUST_PROXY === '1',
+    ownerPassword: env.OWNER_PASSWORD || '',
     waVerifyToken: env.WA_VERIFY_TOKEN || '',
     waAppSecret: env.WA_APP_SECRET || '',
     waApiVersion: env.WA_API_VERSION || 'v21.0',
